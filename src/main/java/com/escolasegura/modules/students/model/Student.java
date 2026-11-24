@@ -1,5 +1,7 @@
 package com.escolasegura.modules.students.model;
 
+import com.escolasegura.shared.domain.Pessoa;
+
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -8,14 +10,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "students")
-public class Student {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "full_name", nullable = false, length = 150)
-    private String fullName;
+public class Student extends Pessoa {
 
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
@@ -28,9 +23,6 @@ public class Student {
 
     @Column(name = "badge_code", nullable = false, unique = true, length = 50)
     private String badgeCode;
-
-    @Column(nullable = false)
-    private boolean active = true;
 
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudentGuardian> guardians = new ArrayList<>();
@@ -45,12 +37,12 @@ public class Student {
     }
 
     public Student(String fullName, LocalDate birthDate, String className, String contactPhone, String badgeCode, boolean active) {
-        this.fullName = fullName;
+        setFullName(fullName);
         this.birthDate = birthDate;
         this.className = className;
         this.contactPhone = contactPhone;
         this.badgeCode = badgeCode;
-        this.active = active;
+        setActive(active);
         this.createdAt = OffsetDateTime.now();
         this.updatedAt = OffsetDateTime.now();
     }
@@ -70,20 +62,53 @@ public class Student {
         updatedAt = OffsetDateTime.now();
     }
 
-    public Long getId() {
-        return id;
+    // --- Regras de Negócio, Encapsulamento e Polimorfismo (POO) ---
+
+    public void vincularCracha(String novoBadgeCode) {
+        if (!this.active) {
+            throw new IllegalStateException("Não é possível vincular crachá a um aluno inativo.");
+        }
+        if (novoBadgeCode == null || novoBadgeCode.isBlank()) {
+            throw new IllegalArgumentException("O código RFID do crachá não pode ser vazio.");
+        }
+        this.badgeCode = novoBadgeCode.trim().toUpperCase();
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void bloquearCracha() {
+        String sufixo = (this.id != null) ? String.valueOf(this.id) : String.valueOf(System.nanoTime());
+        this.badgeCode = "BLOQUEADO-" + sufixo;
     }
 
-    public String getFullName() {
-        return fullName;
+    public boolean possuiCrachaAtivo() {
+        return this.active
+                && this.badgeCode != null
+                && !this.badgeCode.isBlank()
+                && !this.badgeCode.startsWith("BLOQUEADO-");
     }
+
+    @Override
+    public String getIdentificacao() {
+        return String.format("Aluno: %s | Turma: %s | Crachá: %s",
+                this.fullName,
+                this.className,
+                possuiCrachaAtivo() ? this.badgeCode : "BLOQUEADO/INATIVO");
+    }
+
+    // --- Getters e Setters (getId, getFullName e isActive vêm de Pessoa) ---
 
     public void setFullName(String fullName) {
-        this.fullName = fullName;
+        if (fullName == null || fullName.isBlank()) {
+            throw new IllegalArgumentException("O nome completo do aluno é obrigatório.");
+        }
+        this.fullName = fullName.trim();
+    }
+
+    public void setActive(boolean active) {
+        if (active) {
+            ativar();
+        } else {
+            desativar();
+        }
     }
 
     public LocalDate getBirthDate() {
@@ -115,15 +140,7 @@ public class Student {
     }
 
     public void setBadgeCode(String badgeCode) {
-        this.badgeCode = badgeCode;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
+        this.badgeCode = (badgeCode != null) ? badgeCode.trim().toUpperCase() : null;
     }
 
     public List<StudentGuardian> getGuardians() {

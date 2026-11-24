@@ -1,16 +1,14 @@
 package com.escolasegura.modules.accesscontrol.model;
 
 import com.escolasegura.modules.students.model.Student;
+import com.escolasegura.shared.domain.Notificavel;
+import com.escolasegura.shared.domain.RegistroAuditavel;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "access_logs")
-public class AccessLog {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class AccessLog extends RegistroAuditavel implements Notificavel {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
@@ -36,9 +34,6 @@ public class AccessLog {
 
     @Column(name = "recorded_at", nullable = false, updatable = false)
     private OffsetDateTime recordedAt;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
 
     public AccessLog() {
     }
@@ -68,7 +63,45 @@ public class AccessLog {
         if (createdAt == null) createdAt = OffsetDateTime.now();
     }
 
-    public Long getId() { return id; }
+    // --- Regras de Negócio e Polimorfismo (POO) ---
+
+    public boolean isAutorizado() {
+        if (this.validationStatus == null) {
+            return false;
+        }
+        String status = this.validationStatus.name();
+        return "AUTORIZADO".equals(status) || "GRANTED".equals(status) || "APPROVED".equals(status);
+    }
+
+    @Override
+    public String resumirEvento() {
+        String alunoNome = (this.student != null)
+                ? this.student.getFullName()
+                : "Desconhecido (" + this.rawIdentifier + ")";
+        return String.format("[Catraca - %s] %s | Status: %s",
+                this.direction, alunoNome, this.validationStatus);
+    }
+
+    @Override
+    public String gerarMensagemNotificacao() {
+        String alunoNome = (this.student != null)
+                ? this.student.getFullName()
+                : "Portador do crachá " + this.rawIdentifier;
+        if (isAutorizado()) {
+            return String.format("Movimentação registrada: %s realizou %s na unidade.",
+                    alunoNome, this.direction);
+        }
+        return String.format("Tentativa bloqueada (%s) para %s. Motivo: %s",
+                this.direction, alunoNome, this.denialReason);
+    }
+
+    @Override
+    public String getNivelSeveridade() {
+        return isAutorizado() ? "INFO" : "ALTA";
+    }
+
+    // --- Getters (getId e getCreatedAt vêm de RegistroAuditavel) ---
+
     public Student getStudent() { return student; }
     public Device getDevice() { return device; }
     public AccessDirection getDirection() { return direction; }
@@ -76,5 +109,4 @@ public class AccessLog {
     public String getDenialReason() { return denialReason; }
     public String getRawIdentifier() { return rawIdentifier; }
     public OffsetDateTime getRecordedAt() { return recordedAt; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
 }
