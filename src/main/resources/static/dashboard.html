@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Controle - Sistema de Segurança Escolar</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="dashboard-layout">
+        <header class="top-nav">
+            <div class="nav-brand">
+                <span class="brand-badge">SSE</span>
+                <span>Segurança Escolar</span>
+            </div>
+            <div class="user-meta">
+                <span id="user-display">Carregando...</span>
+                <span id="role-badge" class="badge">PERFIL</span>
+                <button id="btn-logout" class="btn btn-secondary btn-sm" onclick="logout()">Sair</button>
+            </div>
+        </header>
+
+        <main class="content-container">
+            <section class="welcome-banner">
+                <h1 id="welcome-title">Bem-vindo(a)</h1>
+                <p id="role-description">Interface personalizada de acordo com seu perfil de autorização.</p>
+            </section>
+
+            <div id="alert-banner" class="alert d-none" role="alert"></div>
+
+                                    <!-- ================================================= -->
+            <!-- SEÇÃO: NOTIFICAÇÕES EM TEMPO REAL (RESPONSÁVEL)   -->
+            <!-- ================================================= -->
+            <section id="guardian-notifications-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>
+                            Notificações de Acesso e Saídas
+                            <span id="guardian-unread-badge" class="badge badge-inactive" style="margin-left:0.5rem;">0 não lidas</span>
+                        </h2>
+                        <p class="section-subtitle">Avisos em tempo real sobre entrada, saída e liberações antecipadas dos seus dependentes.</p>
+                    </div>
+                    <div style="display:flex; gap:0.5rem;">
+                        <button class="btn btn-outline btn-sm" onclick="markAllNotificationsRead()">Marcar Todas como Lidas</button>
+                        <button class="btn btn-secondary btn-sm" onclick="loadGuardianNotifications()">Atualizar</button>
+                    </div>
+                </div>
+                <div id="guardian-notifications-list" class="cards-grid">
+                    <p>Carregando notificações...</p>
+                </div>
+            </section>
+<!-- ================================================= -->
+            <!-- SEÇÃO: CENTRAL DE ALERTAS DE SEGURANÇA (FASE 5)   -->
+            <!-- ================================================= -->
+            <section id="admin-alerts-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Central de Alertas de Segurança (RF008 / RS007)</h2>
+                        <p class="section-subtitle">Monitoramento automático de tentativas de acesso negadas, crachás desconhecidos e anomalias na portaria.</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="loadSecurityAlerts()">Atualizar Alertas</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Severidade</th>
+                                <th>Categoria</th>
+                                <th>Aluno / Ponto</th>
+                                <th>Descrição do Evento</th>
+                                <th>Status</th>
+                                <th>Tratativa / Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="security-alerts-table-body">
+                            <tr><td colspan="7" class="text-center">Carregando alertas de segurança...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+<!-- ================================================= -->
+            <!-- SEÇÃO: GESTÃO DE ALUNOS (COORDENADOR / SUPERVISOR) -->
+            <!-- ================================================= -->
+                        <!-- ================================================= -->
+            <section id="admin-reports-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Indicadores Gerenciais e Relatórios (RF007 / RS004)</h2>
+                        <p class="section-subtitle">Consolidado de presença escolar em tempo real, histórico filtrável e exportação CSV.</p>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-secondary" onclick="loadAdminReports()">Atualizar Dados</button>
+                        <button type="button" class="btn btn-primary" onclick="exportAccessReportCsv()">Exportar CSV</button>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:0.85rem; margin-bottom:1.25rem;">
+                    <div class="student-card" style="padding:0.9rem;">
+                        <small style="color:var(--text-muted)">Presentes na Escola Agora</small>
+                        <h3 id="metric-inside" style="margin:0.35rem 0 0; font-size:1.5rem; color:#16a34a;">0</h3>
+                    </div>
+                    <div class="student-card" style="padding:0.9rem;">
+                        <small style="color:var(--text-muted)">Alunos Ativos</small>
+                        <h3 id="metric-active-students" style="margin:0.35rem 0 0; font-size:1.5rem;">0</h3>
+                    </div>
+                    <div class="student-card" style="padding:0.9rem;">
+                        <small style="color:var(--text-muted)">Entradas Hoje</small>
+                        <h3 id="metric-today-entries" style="margin:0.35rem 0 0; font-size:1.5rem; color:#2563eb;">0</h3>
+                    </div>
+                    <div class="student-card" style="padding:0.9rem;">
+                        <small style="color:var(--text-muted)">Saídas Hoje</small>
+                        <h3 id="metric-today-exits" style="margin:0.35rem 0 0; font-size:1.5rem;">0</h3>
+                    </div>
+                    <div class="student-card" style="padding:0.9rem;">
+                        <small style="color:var(--text-muted)">Saídas Antecipadas</small>
+                        <h3 id="metric-early-exits" style="margin:0.35rem 0 0; font-size:1.5rem;">0</h3>
+                    </div>
+                    <div class="student-card" style="padding:0.9rem;">
+                        <small style="color:var(--text-muted)">Alertas Abertos</small>
+                        <h3 id="metric-open-alerts" style="margin:0.35rem 0 0; font-size:1.5rem; color:#dc2626;">0</h3>
+                    </div>
+                </div>
+
+                <div class="filter-bar" style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom:1rem;">
+                    <input type="text" id="report-filter-class" placeholder="Filtrar por turma (ex: 4º A)" class="form-control" style="max-width:220px;">
+                    <select id="report-filter-direction" class="form-control" style="max-width:180px;">
+                        <option value="">Todas as Direções</option>
+                        <option value="ENTRADA">ENTRADA</option>
+                        <option value="SAIDA">SAÍDA</option>
+                    </select>
+                    <select id="report-filter-status" class="form-control" style="max-width:190px;">
+                        <option value="">Todos os Status</option>
+                        <option value="AUTORIZADO">AUTORIZADO</option>
+                        <option value="NEGADO">NEGADO</option>
+                    </select>
+                    <button type="button" class="btn btn-secondary" onclick="loadAccessReportTable()">Filtrar Relatório</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Aluno</th>
+                                <th>Turma</th>
+                                <th>Crachá</th>
+                                <th>Dispositivo</th>
+                                <th>Direção</th>
+                                <th>Status</th>
+                                <th>Observação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-reports-tbody">
+                            <tr><td colspan="8" class="text-center">Carregando relatório...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+<section id="admin-students-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Gestão de Alunos e Matrículas (RF002 / RS008)</h2>
+                        <p class="section-subtitle">Consulte, filtre, cadastre e gerencie a situação de acesso dos alunos.</p>
+                    </div>
+                    <button id="btn-toggle-student-form" class="btn btn-primary btn-sm" onclick="toggleStudentForm()">+ Novo Aluno</button>
+                </div>
+
+                <!-- Formulário de Cadastro/Edição de Aluno -->
+                <div id="student-form-card" class="card form-card d-none">
+                    <h3 id="student-form-title">Cadastrar Novo Aluno</h3>
+                    <form id="student-form" onsubmit="saveStudent(event)">
+                        <input type="hidden" id="student-id">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="student-name">Nome Completo *</label>
+                                <input type="text" id="student-name" required placeholder="Ex: Lucas Souza">
+                            </div>
+                            <div class="form-group">
+                                <label for="student-birth">Data de Nascimento *</label>
+                                <input type="date" id="student-birth" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="student-class">Turma *</label>
+                                <input type="text" id="student-class" required placeholder="Ex: 4º A">
+                            </div>
+                            <div class="form-group">
+                                <label for="student-phone">Contato do Responsável *</label>
+                                <input type="text" id="student-phone" required placeholder="(11) 98765-4321">
+                            </div>
+                            <div class="form-group">
+                                <label for="student-badge">Código Crachá / RFID *</label>
+                                <input type="text" id="student-badge" required placeholder="Ex: RFID-1004">
+                            </div>
+                            <div class="form-group">
+                                <label for="student-active">Situação do Cadastro</label>
+                                <select id="student-active">
+                                    <option value="true">Ativo</option>
+                                    <option value="false">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Salvar Aluno</button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="toggleStudentForm()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Barra de Filtros e Pesquisa -->
+                <div class="filter-bar">
+                    <input type="text" id="filter-name" placeholder="Buscar por nome..." oninput="debounceSearch()">
+                    <input type="text" id="filter-class" placeholder="Filtrar por turma (ex: 4º A)..." oninput="debounceSearch()">
+                    <select id="filter-active" onchange="loadStudents()">
+                        <option value="">Todas as Situações</option>
+                        <option value="true">Apenas Ativos</option>
+                        <option value="false">Apenas Inativos</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="loadStudents()">Atualizar</button>
+                </div>
+
+                <!-- Tabela de Alunos -->
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome Completo</th>
+                                <th>Turma</th>
+                                <th>Nascimento</th>
+                                <th>Contato</th>
+                                <th>Crachá / RFID</th>
+                                <th>Situação</th>
+                                <th>Responsáveis Vinculados</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="students-table-body">
+                            <tr>
+                                <td colspan="9" class="text-center">Carregando alunos cadastrados...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+                        <!-- ================================================= -->
+            <!-- SEÇÃO: CENTRAL DE ALERTAS DE SEGURANÇA (FASE 5)   -->
+            <!-- ================================================= -->
+            <section id="admin-alerts-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Central de Alertas de Segurança (RF008 / RS007)</h2>
+                        <p class="section-subtitle">Monitoramento automático de tentativas de acesso negadas, crachás desconhecidos e anomalias na portaria.</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="loadSecurityAlerts()">Atualizar Alertas</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Severidade</th>
+                                <th>Categoria</th>
+                                <th>Aluno / Ponto</th>
+                                <th>Descrição do Evento</th>
+                                <th>Status</th>
+                                <th>Tratativa / Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="security-alerts-table-body">
+                            <tr><td colspan="7" class="text-center">Carregando alertas de segurança...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+<!-- ================================================= -->
+            <!-- SEÇÃO: PESSOAS AUTORIZADAS PARA RETIRADA (RF005)   -->
+            <!-- ================================================= -->
+            <section id="admin-pickups-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Pessoas Autorizadas para Retirada (RF005 / RS002)</h2>
+                        <p class="section-subtitle">Gerencie quem pode retirar cada aluno. Somente pessoas com autorização VÁLIDA podem liberar saídas.</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="togglePickupForm()">+ Nova Autorização</button>
+                </div>
+
+                <!-- Formulário de Nova Autorização -->
+                <div id="pickup-form-card" class="card form-card d-none">
+                    <h3>Cadastrar Nova Pessoa Autorizada</h3>
+                    <form id="pickup-form" onsubmit="savePickup(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="pickup-student-select">Aluno *</label>
+                                <select id="pickup-student-select" required>
+                                    <option value="">Selecione o aluno...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="pickup-fullname">Nome Completo da Pessoa *</label>
+                                <input type="text" id="pickup-fullname" required placeholder="Ex: Roberto Souza">
+                            </div>
+                            <div class="form-group">
+                                <label for="pickup-relationship">Grau de Parentesco / Vínculo *</label>
+                                <input type="text" id="pickup-relationship" required placeholder="Ex: Tio, Avó, Motorista Escolar">
+                            </div>
+                            <div class="form-group">
+                                <label for="pickup-phone">Telefone de Contato *</label>
+                                <input type="text" id="pickup-phone" required placeholder="(11) 98888-7777">
+                            </div>
+                            <div class="form-group">
+                                <label for="pickup-document">Documento (RG/CPF)</label>
+                                <input type="text" id="pickup-document" placeholder="12.345.678-9 (opcional)">
+                            </div>
+                            <div class="form-group">
+                                <label for="pickup-valid-until">Válido até *</label>
+                                <input type="date" id="pickup-valid-until" required>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Salvar Autorização</button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="togglePickupForm()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Filtro por Aluno -->
+                <div class="filter-bar">
+                    <select id="pickup-filter-student" onchange="loadPickupsForSelectedStudent()">
+                        <option value="">Selecione um aluno para ver autorizações...</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="loadPickupsForSelectedStudent()">Atualizar</button>
+                </div>
+
+                <!-- Tabela de Pessoas Autorizadas -->
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Vínculo</th>
+                                <th>Telefone</th>
+                                <th>Documento</th>
+                                <th>Situação</th>
+                                <th>Válido até</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pickups-table-body">
+                            <tr>
+                                <td colspan="7" class="text-center">Selecione um aluno acima para visualizar suas autorizações.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Painel de Auditoria -->
+                <div id="audit-panel" class="card mt-4 d-none">
+                    <div class="section-header">
+                        <h3 id="audit-panel-title">Trilha de Auditoria (RF007 / RS004)</h3>
+                        <button class="btn btn-outline btn-sm" onclick="closeAuditPanel()">Fechar</button>
+                    </div>
+                    <p class="section-subtitle">Registro imutável de todas as alterações de autorização. Nenhum log pode ser editado ou excluído.</p>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Ação</th>
+                                    <th>Status Anterior</th>
+                                    <th>Novo Status</th>
+                                    <th>Motivo / Observação</th>
+                                    <th>Operador</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-table-body">
+                                <tr><td colspan="6" class="text-center">Carregando trilha de auditoria...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- SEÇÃO: SAÍDAS ANTECIPADAS (RF006 / RS002)          -->
+            <!-- ================================================= -->
+            <section id="admin-early-exits-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Saídas Antecipadas (RF006 / RS002)</h2>
+                        <p class="section-subtitle">Registre e consulte saídas antecipadas. Somente autorizações VÁLIDAS permitem a liberação do aluno.</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="toggleEarlyExitForm()">+ Registrar Saída</button>
+                </div>
+
+                <!-- Formulário de Saída Antecipada -->
+                <div id="early-exit-form-card" class="card form-card d-none">
+                    <h3>Registrar Saída Antecipada</h3>
+                    <form id="early-exit-form" onsubmit="saveEarlyExit(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="exit-student-select">Aluno *</label>
+                                <select id="exit-student-select" required onchange="loadPickupsForEarlyExit()">
+                                    <option value="">Selecione o aluno...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="exit-pickup-select">Pessoa Autorizada (somente VÁLIDAS) *</label>
+                                <select id="exit-pickup-select" required disabled>
+                                    <option value="">Selecione o aluno primeiro...</option>
+                                </select>
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label for="exit-reason">Motivo da Saída *</label>
+                                <input type="text" id="exit-reason" required placeholder="Ex: Consulta médica, Urgência familiar...">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-danger btn-sm">Confirmar Saída Antecipada</button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="toggleEarlyExitForm()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Filtro de Saídas -->
+                <div class="filter-bar">
+                    <select id="exit-filter-student" onchange="loadEarlyExits()">
+                        <option value="">Todas as Saídas</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="loadEarlyExits()">Atualizar</button>
+                </div>
+
+                <!-- Tabela de Saídas Antecipadas -->
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Aluno</th>
+                                <th>Turma</th>
+                                <th>Retirado por</th>
+                                <th>Vínculo</th>
+                                <th>Motivo</th>
+                                <th>Responsável pelo Registro</th>
+                            </tr>
+                        </thead>
+                        <tbody id="early-exits-table-body">
+                            <tr>
+                                <td colspan="7" class="text-center">Carregando saídas antecipadas...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- SEÇÃO: DEPENDENTES VINCULADOS (RESPONSÁVEL - RF009) -->
+            <!-- ================================================= -->
+            <section id="guardian-students-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Meus Dependentes Vinculados (RF009 / RS003)</h2>
+                        <p class="section-subtitle">Alunos associados à sua conta familiar com controle de privacidade garantido pelo servidor.</p>
+                    </div>
+                </div>
+
+                <div id="guardian-students-grid" class="cards-grid">
+                    <p>Carregando dependentes...</p>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- SEÇÃO: CONTROLE DE ACESSO E CATRACAS (RF003/RF004)-->
+            <!-- ================================================= -->
+            <section id="admin-access-control-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Controle de Acesso e Catracas IoT (RF003 / RF004 / RS006)</h2>
+                        <p class="section-subtitle">Gerencie dispositivos da portaria, simule leituras RFID e acompanhe entradas/saídas ao vivo.</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="toggleDeviceForm()">+ Novo Dispositivo</button>
+                </div>
+
+                <!-- Formulário de Cadastro de Dispositivo IoT -->
+                <div id="device-form-card" class="card form-card d-none">
+                    <h3>Cadastrar Dispositivo de Portaria</h3>
+                    <form id="device-form" onsubmit="saveDevice(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="device-name">Nome do Dispositivo *</label>
+                                <input type="text" id="device-name" required placeholder="Ex: Catraca Portaria Principal">
+                            </div>
+                            <div class="form-group">
+                                <label for="device-type">Tipo *</label>
+                                <select id="device-type" required>
+                                    <option value="CATRACA">Catraca Eletrônica</option>
+                                    <option value="LEITOR_RFID">Leitor RFID / Crachá</option>
+                                    <option value="PORTARIA_MANUAL">Terminal Portaria Manual</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="device-location">Localização *</label>
+                                <input type="text" id="device-location" required placeholder="Ex: Entrada Bloco A">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Gerar Token e Cadastrar</button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="toggleDeviceForm()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Banner de Token Recém-Gerado -->
+                <div id="new-device-token-box" class="card d-none" style="border-left: 4px solid #16a34a; background: #f0fdf4; margin-bottom: 1rem;">
+                    <strong>Dispositivo registrado com sucesso!</strong>
+                    <p style="margin: 0.4rem 0; font-size: 0.9rem;">Copie o token abaixo agora (por segurança, ele não será exibido novamente após recarregar a página):</p>
+                    <code id="new-device-token-value" style="display: block; padding: 0.6rem; background: #fff; border: 1px solid #bbf7d0; border-radius: 6px; font-weight: bold;"></code>
+                </div>
+
+                <!-- Simulador Visual de Catraca RFID -->
+                <div class="card" style="margin-bottom: 1.5rem; border: 1px solid #cbd5e1;">
+                    <h3>Simulador de Leitura na Catraca (Teste ao Vivo)</h3>
+                    <p class="section-subtitle">Simule a passagem de um crachá RFID sem precisar usar o terminal.</p>
+                    <form id="turnstile-sim-form" onsubmit="simulateTurnstileScan(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="sim-device-token">Token do Dispositivo (`X-Device-Token`) *</label>
+                                <input type="text" id="sim-device-token" required placeholder="Cole o token dev_... da catraca">
+                            </div>
+                            <div class="form-group">
+                                <label for="sim-badge-code">Código do Crachá / RFID *</label>
+                                <input type="text" id="sim-badge-code" required placeholder="Ex: RFID-1001 ou RFID-2002">
+                            </div>
+                            <div class="form-group">
+                                <label for="sim-direction">Direção *</label>
+                                <select id="sim-direction" required>
+                                    <option value="ENTRADA">ENTRADA</option>
+                                    <option value="SAIDA">SAÍDA</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Passar Crachá na Catraca</button>
+                        </div>
+                    </form>
+                    <div id="sim-feedback" class="alert d-none" style="margin-top: 1rem;"></div>
+                </div>
+
+                <!-- Lista de Dispositivos Cadastrados -->
+                <h3 style="margin-bottom: 0.5rem;">Dispositivos Cadastrados</h3>
+                <div class="table-responsive" style="margin-bottom: 1.5rem;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Localização</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices-table-body">
+                            <tr><td colspan="6" class="text-center">Carregando dispositivos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Monitor de Entradas e Saídas em Tempo Real -->
+                <div class="section-header">
+                    <div>
+                        <h3>Monitor de Acessos em Tempo Real</h3>
+                        <p class="section-subtitle">Atualiza automaticamente a cada 5 segundos.</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="loadAccessLogs()">Atualizar Agora</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Aluno</th>
+                                <th>Turma</th>
+                                <th>Dispositivo</th>
+                                <th>Direção</th>
+                                <th>Resultado</th>
+                                <th>Observação / Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="access-logs-table-body">
+                            <tr><td colspan="7" class="text-center">Carregando registros de acesso...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SEÇÃO DE TESTES DE RBAC -->
+            
+<!-- ================================================= -->
+            <!-- SEÇÃO: COMUNICADOS INSTITUCIONAIS (COORDENAÇÃO)   -->
+            <!-- ================================================= -->
+            <section id="admin-announcements-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Comunicados Escolares Institucionais (RF010)</h2>
+                        <p class="section-subtitle">Publique avisos oficiais para alunos e responsáveis.</p>
+                    </div>
+                </div>
+
+                <div class="card form-card" style="margin-bottom:1.25rem;">
+                    <h3>Novo Comunicado Oficial</h3>
+                    <form id="announcement-form" onsubmit="createSchoolAnnouncement(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="ann-title">Título do Comunicado *</label>
+                                <input type="text" id="ann-title" required maxlength="150" placeholder="Ex: Horário especial de provas">
+                            </div>
+                            <div class="form-group">
+                                <label for="ann-category">Categoria</label>
+                                <select id="ann-category">
+                                    <option value="GERAL">GERAL</option>
+                                    <option value="SEGURANCA">SEGURANÇA</option>
+                                    <option value="EVENTO">EVENTO</option>
+                                    <option value="ACADEMICO">ACADÊMICO</option>
+                                </select>
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label for="ann-content">Mensagem *</label>
+                                <textarea id="ann-content" rows="3" required placeholder="Escreva o conteúdo completo do comunicado..." style="width:100%; padding:0.6rem; border:1px solid var(--border-color); border-radius:6px; font-family:inherit;"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Publicar Comunicado</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="admin-announcements-list" class="cards-grid">
+                    <p>Carregando comunicados...</p>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- SEÇÃO: COMUNICADOS ESCOLARES (RESPONSÁVEL)        -->
+            <!-- ================================================= -->
+            <section id="guardian-announcements-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Mural de Comunicados da Escola (RF010)</h2>
+                        <p class="section-subtitle">Avisos oficiais publicados pela Coordenação e Secretaria.</p>
+                    </div>
+                </div>
+                <div id="guardian-announcements-list" class="cards-grid">
+                    <p>Carregando comunicados...</p>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- SEÇÃO: PORTAL DO ALUNO COMPLETO (PERFIL ALUNO)    -->
+            <!-- ================================================= -->
+            <section id="student-portal-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Meu Portal Escolar (RF010)</h2>
+                        <p class="section-subtitle">Consulte seus dados de matrícula, crachá de acesso, histórico de portaria e avisos da escola.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="loadStudentPortal()">Atualizar Portal</button>
+                </div>
+
+                <div id="student-profile-card" class="student-card" style="margin-bottom:1.25rem;">
+                    <p>Carregando dados do aluno...</p>
+                </div>
+
+                <h3 style="margin:1rem 0 0.65rem;">Meus Registros de Entrada e Saída</h3>
+                <div class="table-responsive" style="margin-bottom:1.5rem;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Direção</th>
+                                <th>Status</th>
+                                <th>Ponto / Catraca</th>
+                                <th>Observação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-own-logs-tbody">
+                            <tr><td colspan="5" class="text-center">Carregando seu histórico de acessos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 style="margin:1rem 0 0.65rem;">Comunicados da Escola</h3>
+                <div id="student-announcements-list" class="cards-grid">
+                    <p>Carregando comunicados...</p>
+                </div>
+            </section>
+
+            <section class="panel-section">
+                <h2>Teste de Políticas de Autorização (RBAC)</h2>
+                <p class="section-subtitle">Verifique o comportamento do sistema testando o acesso às rotas protegidas pelo token JWT:</p>
+
+                <div class="test-cards-grid">
+                    <div class="test-card">
+                        <h3>Gestão Escolar</h3>
+                        <p>Restrito a Coordenadores e Supervisores.</p>
+                        <button class="btn btn-outline" onclick="testAccess('/api/test/coordinator')">Testar Rota</button>
+                    </div>
+
+                    <div class="test-card">
+                        <h3>Portal Familiar</h3>
+                        <p>Restrito aos Responsáveis pelos alunos.</p>
+                        <button class="btn btn-outline" onclick="testAccess('/api/test/guardian')">Testar Rota</button>
+                    </div>
+
+                    <div class="test-card">
+                        <h3>Área do Aluno</h3>
+                        <p>Restrito a contas de Alunos matriculados.</p>
+                        <button class="btn btn-outline" onclick="testAccess('/api/test/student')">Testar Rota</button>
+                    </div>
+                </div>
+
+                <div id="test-result" class="test-output d-none">
+                    <strong>Resposta do Servidor:</strong>
+                    <pre id="test-output-content"></pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal para Vinculação de Responsável --><div id="modal-link-guardian" class="modal d-none">
+        <div class="modal-content">
+            <h3>Vincular Responsável ao Aluno</h3>
+            <p id="modal-student-name" class="modal-subtitle"></p>
+            <form onsubmit="submitLinkGuardian(event)">
+                <input type="hidden" id="modal-student-id">
+                <div class="form-group">
+                    <label for="modal-guardian-id">ID do Usuário Responsável (Cadastrado) *</label>
+                    <input type="number" id="modal-guardian-id" required placeholder="Ex: 3 (ID do usuário)">
+                    <small class="hint">Dica: O usuário responsável padrão de teste tem ID 3 (responsavel@escola.com).</small>
+                </div>
+                <div class="form-group">
+                    <label for="modal-relationship">Grau de Parentesco / Vínculo *</label>
+                    <input type="text" id="modal-relationship" required placeholder="Ex: Mãe, Pai, Avó, Tutor Legal">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary btn-sm">Confirmar Vínculo</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="closeModal()">Fechar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Revogação / Revalidação -->
+    <div id="modal-pickup-status" class="modal d-none">
+        <div class="modal-content">
+            <h3 id="modal-status-title">Alterar Situação da Autorização</h3>
+            <p id="modal-status-desc" class="modal-subtitle"></p>
+            <form onsubmit="submitPickupStatusChange(event)">
+                <input type="hidden" id="modal-pickup-id">
+                <input type="hidden" id="modal-new-status">
+                <div class="form-group">
+                    <label for="modal-status-reason">Motivo (obrigatório) *</label>
+                    <input type="text" id="modal-status-reason" required placeholder="Ex: Responsável solicitou cancelamento.">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary btn-sm">Confirmar</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="closePickupStatusModal()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>
