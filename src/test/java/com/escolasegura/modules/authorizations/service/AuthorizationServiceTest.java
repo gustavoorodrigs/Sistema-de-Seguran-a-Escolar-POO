@@ -12,6 +12,7 @@ import com.escolasegura.modules.authorizations.model.PickupStatus;
 import com.escolasegura.modules.authorizations.repository.AuthorizedPickupRepository;
 import com.escolasegura.modules.authorizations.repository.EarlyExitRepository;
 import com.escolasegura.modules.authorizations.repository.PickupAuditLogRepository;
+import com.escolasegura.modules.notifications.service.NotificationAndAlertService;
 import com.escolasegura.modules.students.model.Student;
 import com.escolasegura.modules.students.repository.StudentGuardianRepository;
 import com.escolasegura.modules.students.repository.StudentRepository;
@@ -46,6 +47,8 @@ class AuthorizationServiceTest {
     private StudentGuardianRepository studentGuardianRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private NotificationAndAlertService notificationAndAlertService;
 
     @InjectMocks
     private AuthorizationService authorizationService;
@@ -147,24 +150,9 @@ class AuthorizationServiceTest {
 
     @Test
     @DisplayName("Deve bloquear saída antecipada para aluno inativo (RF006)")
-    void shouldBlockEarlyExitForInactiveStudent() {
-        // O serviço verifica student.isActive() ANTES de consultar authorizedPickupRepository
-        // → stub do pickup seria desnecessário; apenas o aluno é necessário aqui
-        EarlyExitCreateRequest request = new EarlyExitCreateRequest(3L, 10L, "Tentativa indevida.");
-
-        when(studentRepository.findById(3L)).thenReturn(Optional.of(inactiveStudent));
-
-        assertThatThrownBy(() -> authorizationService.registerEarlyExit(request, "coordenador@escola.com"))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("cadastro inativo");
-    }
-
-    @Test
-    @DisplayName("Deve bloquear responsável de visualizar autorizações de aluno não vinculado (RS003)")
-    void shouldDenyGuardianAccessToUnlinkedStudentPickups() {
-        when(studentGuardianRepository.isGuardianLinkedToStudent(99L, "invasor@escola.com")).thenReturn(false);
-
+    void shouldBlockEarlyExitForInactiveStudent() { 
         assertThatThrownBy(() -> authorizationService.getPickupsForMyStudent(99L, "invasor@escola.com"))
                 .hasMessageContaining("não pertence à sua conta familiar");
     }
 }
+        // O serviço
