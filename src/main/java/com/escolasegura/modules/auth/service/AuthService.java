@@ -52,7 +52,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void changePassword(String email, ChangePasswordRequest request) {
+    public UserResponse changePassword(String email, ChangePasswordRequest request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(InvalidCredentialsException::new);
 
@@ -66,5 +66,6 @@ public class AuthService {
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
+        return UserResponse.fromEntity(user);
     }
 }

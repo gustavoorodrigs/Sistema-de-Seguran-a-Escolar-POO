@@ -10,8 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -24,22 +22,16 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(authService.login(request));
     }
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal String email) {
-        UserResponse response = authService.getProfile(email);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(authService.getProfile(email));
     }
 
     @PatchMapping("/password")
-    public ResponseEntity> changePassword(
-            @AuthenticationPrincipal String email,
-            @Valid @RequestBody ChangePasswordRequest request
-    ) {
-        authService.changePassword(email, request);
-        return ResponseEntity.ok(Map.of("message", "Senha alterada com sucesso."));
+    public ResponseEntity<UserResponse> changePassword(@AuthenticationPrincipal String email, @Valid @RequestBody ChangePasswordRequest request) {
+        return ResponseEntity.ok(authService.changePassword(email, request));
     }
 }
