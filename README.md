@@ -19,8 +19,8 @@ O modelo de domínio foi estruturado para aplicar explicitamente os quatro pilar
 
 ## 2. Funcionalidades Operacionais Implementadas (8 Fluxos)
 
-1. **Autenticação e Controle de Acesso (RBAC & IoT):** Login JWT por perfil (`ADMIN`, `GUARDIAN`, `STUDENT`) e autenticação de catracas via `X-Device-Key`.
-2. **Gestão de Alunos e Crachás RFID:** Cadastro de estudantes, vínculo de responsáveis e ativação/bloqueio de credenciais RFID.
+1. **Autenticação, RBAC e Segurança da Conta:** Login JWT por perfil (`COORDENADOR`, `SUPERVISOR`, `RESPONSAVEL`, `ALUNO`), autenticação de catracas via `X-Device-Key` e redefinição de senha provisória pelo próprio usuário (`PATCH /api/auth/password`).
+2. **Gestão de Alunos, Responsáveis e Crachás RFID:** Cadastro de estudantes, criação e ativação/desativação de contas de responsáveis familiares pela coordenação (`/api/admin/guardians`), vínculo dinâmico entre responsável e aluno e ativação/bloqueio de credenciais RFID.
 3. **Controle de Acesso em Tempo Real:** Processamento de passagens (`ENTRADA`/`SAIDA`) nas catracas com validação de regras de horário e autorização.
 4. **Saídas Antecipadas e Retiradas:** Cadastro de terceiros autorizados e fluxo de solicitação/aprovação de saída antecipada.
 5. **Central de Alertas de Segurança:** Geração automática de incidentes em tentativas bloqueadas e fluxo de resolução pela coordenação.
@@ -43,10 +43,37 @@ O modelo de domínio foi estruturado para aplicar explicitamente os quatro pilar
 ## 4. Como Executar o Projeto Localmente
 
 ### Pré-requisitos
-* Java 17 ou superior
-* PostgreSQL 14+
+- Java 17 ou superior (testado com JDK 25)
+- Apache Maven 3.9+
+- Banco de dados H2 em memória (perfil padrão `dev`) ou PostgreSQL 14+ (perfil `prod`)
 
 ### Passo a Passo
-1. **Criar o banco de dados no PostgreSQL:**
-   ```sql
+1. **Executar em modo de desenvolvimento (H2 em memória com dados iniciais):**
+   ```
+bash
+   mvn spring-boot:run
+   ```
+2. **Ou executar com PostgreSQL (perfil `prod`):**
+   ```
+sql
    CREATE DATABASE school_security;
+   ```
+   ```
+bash
+   mvn spring-boot:run -Dspring-boot.run.profiles=prod
+   ```
+3. **Acessar a aplicação:**
+   Abra `http://localhost:8080` no navegador.
+
+---
+
+## 5. Endpoints de Autenticação e Gestão de Responsáveis
+
+| Método | Endpoint | Perfis Permitidos | Descrição |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Público | Autentica o usuário e retorna o token JWT. |
+| `GET` | `/api/auth/me` | Autenticado | Retorna os dados do perfil autenticado. |
+| `PATCH` | `/api/auth/password` | Autenticado | Substitui a senha atual (provisória) por uma nova senha pessoal. |
+| `GET` | `/api/admin/guardians` | `COORDENADOR`, `SUPERVISOR` | Lista os responsáveis familiares e seus alunos vinculados. |
+| `POST` | `/api/admin/guardians` | `COORDENADOR`, `SUPERVISOR` | Cadastra uma conta de responsável (`RESPONSAVEL`) com vínculo opcional imediato a um aluno. |
+| `PATCH` | `/api/admin/guardians/{id}/status` | `COORDENADOR`, `SUPERVISOR` | Ativa ou desativa o acesso de um responsável familiar. |
