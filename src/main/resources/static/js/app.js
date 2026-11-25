@@ -165,7 +165,7 @@ function initDashboard() {
             populateStudentSelects();
             loadEarlyExits(); showSection('admin-reports-section'); loadAdminReports(); showSection('admin-announcements-section'); loadAdminAnnouncements();
         } else if (user.role === 'RESPONSAVEL') {
-            showSection('guardian-notifications-section'); showSection('guardian-students-section'); loadGuardianNotifications(); loadGuardianStudents(); setInterval(loadGuardianNotifications, 5000); showSection('guardian-announcements-section'); loadGuardianAnnouncements();
+            showSection('guardian-notifications-section'); showSection('guardian-students-section'); loadGuardianNotifications(); loadGuardianStudents(); setInterval(loadGuardianNotifications, 5000); showSection('guardian-announcements-section'); loadGuardianAnnouncements(); showSection('guardian-security-section');
         } else if (user.role === 'ALUNO') {
             showSection('student-portal-section');
             loadStudentPortal();
@@ -1508,6 +1508,52 @@ async function toggleGuardianStatus(guardianId, newStatus) {
 
         showBanner(`Acesso de "${data.name}" atualizado para ${newStatus ? 'Ativo' : 'Inativo'}.`, 'success');
         loadGuardians();
+
+    } catch (err) {
+        showBanner('Erro na comunicação com o servidor.', 'danger');
+    }
+}
+// ========================================================================
+// SEGURANÇA DA CONTA - ALTERAÇÃO DE SENHA (RESPONSÁVEL)
+// ========================================================================
+
+function toggleChangePasswordForm() {
+    const card = document.getElementById('guardian-password-card');
+    if (!card) return;
+    card.classList.toggle('d-none');
+    if (!card.classList.contains('d-none')) {
+        document.getElementById('change-password-form').reset();
+        document.getElementById('current-password').focus();
+    }
+}
+
+async function submitChangePassword(event) {
+    event.preventDefault();
+
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-new-password').value;
+
+    if (newPassword !== confirmPassword) {
+        showBanner('A confirmação da nova senha não confere.', 'danger');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/auth/password', {
+            method: 'PATCH',
+            headers: authHeader(),
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            showBanner(data.message || 'Erro ao alterar senha.', 'danger');
+            return;
+        }
+
+        showBanner('Senha alterada com sucesso! Utilize a nova senha no próximo login.', 'success');
+        toggleChangePasswordForm();
 
     } catch (err) {
         showBanner('Erro na comunicação com o servidor.', 'danger');

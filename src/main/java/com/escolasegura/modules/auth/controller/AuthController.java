@@ -1,5 +1,6 @@
 package com.escolasegura.modules.auth.controller;
 
+import com.escolasegura.modules.auth.dto.ChangePasswordRequest;
 import com.escolasegura.modules.auth.dto.LoginRequest;
 import com.escolasegura.modules.auth.dto.LoginResponse;
 import com.escolasegura.modules.auth.dto.UserResponse;
@@ -8,6 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,5 +32,14 @@ public class AuthController {
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal String email) {
         UserResponse response = authService.getProfile(email);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/password")
+    public ResponseEntity> changePassword(
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        authService.changePassword(email, request);
+        return ResponseEntity.ok(Map.of("message", "Senha alterada com sucesso."));
     }
 }

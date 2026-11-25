@@ -724,6 +724,44 @@
             </section>
 
             <!-- ================================================= -->
+            <!-- ================================================= -->
+            <!-- SEÇÃO: SEGURANÇA DA CONTA (ALTERAR SENHA)         -->
+            <!-- ================================================= -->
+            <section id="guardian-security-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Segurança da Conta</h2>
+                        <p class="section-subtitle">Substitua a senha provisória fornecida pela coordenação por uma senha pessoal.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="toggleChangePasswordForm()">Alterar Minha Senha</button>
+                </div>
+
+                <div id="guardian-password-card" class="card form-card d-none">
+                    <h3>Redefinir Senha de Acesso</h3>
+                    <form id="change-password-form" onsubmit="submitChangePassword(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="current-password">Senha Atual *</label>
+                                <input type="password" id="current-password" required placeholder="Digite sua senha atual">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-password">Nova Senha *</label>
+                                <input type="password" id="new-password" required minlength="6" placeholder="Mínimo 6 caracteres">
+                            </div>
+                            <div class="form-group">
+                                <label for="confirm-new-password">Confirmar Nova Senha *</label>
+                                <input type="password" id="confirm-new-password" required minlength="6" placeholder="Repita a nova senha">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Salvar Nova Senha</button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="toggleChangePasswordForm()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
             <!-- SEÇÃO: PORTAL DO ALUNO COMPLETO (PERFIL ALUNO)    -->
             <!-- ================================================= -->
             <section id="student-portal-section" class="panel-section d-none">
@@ -840,7 +878,7 @@
         </div>
     </div>
 
-    <script src="/js/app.js?v=3"></script>
+    <script src="/js/app.js?v=4"></script>
     <script>
         document.addEventListener('DOMContentLoaded', initDashboard);
     </script>

@@ -1,8 +1,10 @@
 package com.escolasegura.modules.auth.service;
 
+import com.escolasegura.core.exception.BusinessRuleException;
 import com.escolasegura.core.exception.InactiveUserException;
 import com.escolasegura.core.exception.InvalidCredentialsException;
 import com.escolasegura.core.security.JwtService;
+import com.escolasegura.modules.auth.dto.ChangePasswordRequest;
 import com.escolasegura.modules.auth.dto.LoginRequest;
 import com.escolasegura.modules.auth.dto.LoginResponse;
 import com.escolasegura.modules.auth.dto.UserResponse;
@@ -47,5 +49,22 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(InvalidCredentialsException::new);
         return UserResponse.fromEntity(user);
+    }
+
+    @Transactional
+    public void changePassword(String email, ChangePasswordRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(InvalidCredentialsException::new);
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BusinessRuleException("A senha atual informada está incorreta.");
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            throw new BusinessRuleException("A nova senha deve ser diferente da senha atual.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
     }
 }
