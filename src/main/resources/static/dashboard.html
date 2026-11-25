@@ -240,6 +240,73 @@
                                 <td colspan="9" class="text-center">Carregando alunos cadastrados...</td>
                             </tr>
                         </tbody>
+                                        </table>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- SEÇÃO: GESTÃO DE RESPONSÁVEIS FAMILIARES (RF002)  -->
+            <!-- ================================================= -->
+            <section id="admin-guardians-section" class="panel-section d-none">
+                <div class="section-header">
+                    <div>
+                        <h2>Gestão de Responsáveis Familiares (RF002 / RF009)</h2>
+                        <p class="section-subtitle">Cadastre contas de acesso ao Portal do Responsável e vincule aos respectivos alunos.</p>
+                    </div>
+                    <button id="btn-toggle-guardian-form" class="btn btn-primary btn-sm" onclick="toggleGuardianForm()">+ Novo Responsável</button>
+                </div>
+
+                <div id="guardian-form-card" class="card form-card d-none">
+                    <h3>Cadastrar Novo Responsável</h3>
+                    <form id="guardian-form" onsubmit="saveGuardian(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="guardian-name">Nome Completo *</label>
+                                <input type="text" id="guardian-name" required placeholder="Ex: Fernanda Oliveira">
+                            </div>
+                            <div class="form-group">
+                                <label for="guardian-email">E-mail de Acesso *</label>
+                                <input type="email" id="guardian-email" required placeholder="Ex: fernanda@email.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="guardian-password">Senha Inicial *</label>
+                                <input type="password" id="guardian-password" required minlength="6" placeholder="Mínimo 6 caracteres">
+                            </div>
+                            <div class="form-group">
+                                <label for="guardian-student-select">Vincular Aluno Agora (opcional)</label>
+                                <select id="guardian-student-select">
+                                    <option value="">Nenhum (vincular depois)...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="guardian-relationship">Grau de Parentesco (se vincular aluno)</label>
+                                <input type="text" id="guardian-relationship" placeholder="Ex: Mãe, Pai, Tutor Legal">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Salvar Responsável</button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="toggleGuardianForm()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome Completo</th>
+                                <th>E-mail de Acesso</th>
+                                <th>Alunos Vinculados</th>
+                                <th>Situação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="guardians-table-body">
+                            <tr>
+                                <td colspan="6" class="text-center">Carregando responsáveis cadastrados...</td>
+                            </tr>
+                        </tbody>
                     </table>
                 </div>
             </section>
@@ -735,9 +802,11 @@
             <form onsubmit="submitLinkGuardian(event)">
                 <input type="hidden" id="modal-student-id">
                 <div class="form-group">
-                    <label for="modal-guardian-id">ID do Usuário Responsável (Cadastrado) *</label>
-                    <input type="number" id="modal-guardian-id" required placeholder="Ex: 3 (ID do usuário)">
-                    <small class="hint">Dica: O usuário responsável padrão de teste tem ID 3 (responsavel@escola.com).</small>
+                    <label for="modal-guardian-id">Responsável Cadastrado *</label>
+                    <select id="modal-guardian-id" required>
+                        <option value="">Selecione o responsável...</option>
+                    </select>
+                    <small class="hint">Cadastre novos responsáveis na seção "Gestão de Responsáveis Familiares".</small>
                 </div>
                 <div class="form-group">
                     <label for="modal-relationship">Grau de Parentesco / Vínculo *</label>
@@ -771,7 +840,7 @@
         </div>
     </div>
 
-    <script src="/js/app.js"></script>
+    <script src="/js/app.js?v=3"></script>
     <script>
         document.addEventListener('DOMContentLoaded', initDashboard);
     </script>

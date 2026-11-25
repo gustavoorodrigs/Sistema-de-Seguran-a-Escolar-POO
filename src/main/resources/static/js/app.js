@@ -96,7 +96,7 @@ if (loginForm) {
                 return;
             }
 
-            localStorage.setItem('sse_token', data.token);
+            if (!data.token || !data.user) { showAlert('Resposta de login incompleta: ' + JSON.stringify(data), 'danger'); return; } localStorage.setItem('sse_token', data.token);
             localStorage.setItem('sse_user', JSON.stringify(data.user));
 
             showAlert('Autenticado com sucesso! Redirecionando...', 'success');
@@ -158,7 +158,7 @@ function initDashboard() {
         }
 
         if (user.role === 'COORDENADOR' || user.role === 'SUPERVISOR') {
-            showSection('admin-students-section');
+            showSection('admin-students-section'); showSection('admin-guardians-section'); loadGuardians();
             showSection('admin-pickups-section');
             showSection('admin-early-exits-section'); showSection('admin-alerts-section'); showSection('admin-access-control-section'); loadSecurityAlerts(); loadDevices(); loadAccessLogs(); setInterval(() => { loadAccessLogs(); loadSecurityAlerts(); }, 5000);
             loadStudents();
@@ -172,7 +172,8 @@ function initDashboard() {
         }
 
     } catch (e) {
-        logout();
+        console.error('Erro no initDashboard:', e);
+        showBanner('Erro ao inicializar painel: ' + e.message, 'danger');
     }
 }
 
@@ -340,6 +341,7 @@ async function toggleStudentStatus(studentId, newStatus) {
 function openLinkModal(studentId, studentName) {
     document.getElementById('modal-student-id').value = studentId;
     document.getElementById('modal-student-name').textContent = `Aluno: ${studentName}`;
+    populateGuardianModalSelect();
     document.getElementById('modal-guardian-id').value = '';
     document.getElementById('modal-relationship').value = '';
     document.getElementById('modal-link-guardian').classList.remove('d-none');
@@ -513,16 +515,17 @@ async function populateStudentSelects() {
             'pickup-student-select',
             'pickup-filter-student',
             'exit-student-select',
-            'exit-filter-student'
+            'exit-filter-student',
+            'guardian-student-select'
         ];
 
         selects.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            const hasAll = id === 'exit-filter-student';
-            el.innerHTML = hasAll
-                ? '<option value="">Todas as Saídas</option>'
-                : `<option value="">Selecione o aluno...</option>`;
+            const defaultLabel = id === 'exit-filter-student'
+                ? 'Todas as Saídas'
+                : (id === 'guardian-student-select' ? 'Nenhum (vincular depois)...' : 'Selecione o aluno...');
+            el.innerHTML = `<option value="">${defaultLabel}</option>`;
             students.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
@@ -1356,5 +1359,157 @@ async function loadStudentPortal() {
         renderAnnouncementCards(data.announcements, 'student-announcements-list');
     } catch (e) {
         console.error('Erro ao carregar Portal do Aluno:', e);
+    }
+}
+// ========================================================================
+// GESTÃO DE RESPONSÁVEIS FAMILIARES (COORDENADOR / SUPERVISOR)
+// ========================================================================
+
+var cachedGuardians = [];
+
+function toggleGuardianForm() {
+    const card = document.getElementById('guardian-form-card');
+    if (!card) return;
+    card.classList.toggle('d-none');
+    if (!card.classList.contains('d-none')) {
+        document.getElementById('guardian-form').reset();
+        document.getElementById('guardian-name').focus();
+    }
+}
+
+function populateGuardianModalSelect() {
+    const select = document.getElementById('modal-guardian-id');
+    if (!select) return;
+    select.innerHTML = '<option value="">Selecione o responsável...</option>';
+    cachedGuardians
+        .filter(g => g.active)
+        .forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = `${g.name} (${g.email})`;
+            select.appendChild(opt);
+        });
+}
+
+async function loadGuardians() {
+    const tbody = document.getElementById('guardians-table-body');
+    if (!tbody) return;
+
+    try {
+        const response = await fetch('/api/admin/guardians', {
+            headers: authHeader()
+        });
+
+        if (!response.ok) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color:var(--danger)">Erro ao carregar responsáveis (HTTP ${response.status}).</td></tr>`;
+            return;
+        }
+
+        cachedGuardians = await response.json();
+        populateGuardianModalSelect();
+
+        if (cachedGuardians.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum responsável cadastrado.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = cachedGuardians.map(g => {
+            const statusBadge = g.active
+                ? '<span class="badge badge-active">Ativo</span>'
+                : '<span class="badge badge-inactive">Inativo</span>';
+
+            const toggleBtn = g.active
+                ? `<button class="btn-action-status btn-deactivate" onclick="toggleGuardianStatus(${g.id}, false)">Desativar</button>`
+                : `<button class="btn-action-status btn-activate" onclick="toggleGuardianStatus(${g.id}, true)">Ativar</button>`;
+
+            const studentsHtml = (g.linkedStudents && g.linkedStudents.length > 0)
+                ? g.linkedStudents.map(ls => `
+                    <span class="guardian-tag">
+                        ${escapeHtml(ls.studentName)} - ${escapeHtml(ls.className)} (${escapeHtml(ls.relationship)})
+                    </span>
+                  `).join('')
+                : '<span style="color:var(--text-muted); font-size:0.75rem;">Nenhum aluno vinculado</span>';
+
+            return `
+                <tr>
+                    <td><strong>#${g.id}</strong></td>
+                    <td><strong>${escapeHtml(g.name)}</strong></td>
+                    <td>${escapeHtml(g.email)}</td>
+                    <td>${studentsHtml}</td>
+                    <td>${statusBadge}</td>
+                    <td>${toggleBtn}</td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="color:var(--danger)">Erro na conexão com o servidor.</td></tr>';
+    }
+}
+
+async function saveGuardian(event) {
+    event.preventDefault();
+
+    const studentVal = document.getElementById('guardian-student-select').value;
+    const relationshipVal = document.getElementById('guardian-relationship').value.trim();
+
+    if (studentVal && !relationshipVal) {
+        showBanner('Informe o grau de parentesco ao selecionar um aluno para vínculo.', 'danger');
+        return;
+    }
+
+    const payload = {
+        name: document.getElementById('guardian-name').value.trim(),
+        email: document.getElementById('guardian-email').value.trim(),
+        password: document.getElementById('guardian-password').value,
+        studentId: studentVal ? Number(studentVal) : null,
+        relationship: relationshipVal || null
+    };
+
+    try {
+        const response = await fetch('/api/admin/guardians', {
+            method: 'POST',
+            headers: authHeader(),
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            showBanner(data.message || 'Erro ao cadastrar responsável.', 'danger');
+            return;
+        }
+
+        showBanner(`Responsável "${data.name}" cadastrado com sucesso!`, 'success');
+        toggleGuardianForm();
+        await loadGuardians();
+        await loadStudents();
+
+    } catch (err) {
+        showBanner('Erro na comunicação com o servidor.', 'danger');
+    }
+}
+
+async function toggleGuardianStatus(guardianId, newStatus) {
+    const actionName = newStatus ? 'ativar' : 'desativar';
+    if (!confirm(`Deseja realmente ${actionName} o acesso deste responsável?`)) return;
+
+    try {
+        const response = await fetch(`/api/admin/guardians/${guardianId}/status`, {
+            method: 'PATCH',
+            headers: authHeader(),
+            body: JSON.stringify({ active: newStatus })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            showBanner(data.message || 'Erro ao atualizar situação do responsável.', 'danger');
+            return;
+        }
+
+        showBanner(`Acesso de "${data.name}" atualizado para ${newStatus ? 'Ativo' : 'Inativo'}.`, 'success');
+        loadGuardians();
+
+    } catch (err) {
+        showBanner('Erro na comunicação com o servidor.', 'danger');
     }
 }
