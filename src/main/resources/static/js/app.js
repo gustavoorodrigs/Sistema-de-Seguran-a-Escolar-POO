@@ -452,12 +452,12 @@ async function loadGuardianStudents() {
     }
 }
 
-async function loadGuardianStudentPickups(studentId, studentName) {
+async function loadGuardianStudentPickups(studentId, studentName, forceOpen = false) {
     const token = localStorage.getItem('sse_token');
     const container = document.getElementById(`guardian-pickups-${studentId}`);
     if (!container) return;
 
-    if (!container.classList.contains('d-none')) {
+    if (!forceOpen && !container.classList.contains('d-none')) {
         container.classList.add('d-none');
         return;
     }
@@ -477,19 +477,54 @@ async function loadGuardianStudentPickups(studentId, studentName) {
         }
 
         const pickups = await response.json();
-        if (pickups.length === 0) {
-            container.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted)">Nenhuma pessoa autorizada cadastrada para este aluno.</p>';
-            return;
-        }
+        const safeName = escapeHtml(studentName);
+
+        const listHtml = pickups.length === 0
+            ? '<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;">Nenhuma pessoa autorizada cadastrada para este aluno.</p>'
+            : `
+                <p style="font-size:0.78rem;font-weight:600;color:var(--text-muted);margin-bottom:0.45rem;">Pessoas autorizadas a retirar ${safeName}:</p>
+                <div style="display:flex;flex-direction:column;gap:0.45rem;margin-bottom:0.85rem;">
+                    ${pickups.map(p => `
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.45rem 0.6rem;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:0.82rem;">
+                            <div>
+                                ${pickupStatusBadge(p.status)}
+                                <strong style="margin-left:0.35rem;">${escapeHtml(p.fullName)}</strong>
+                                <span style="color:var(--text-muted);">(${escapeHtml(p.relationship)})</span>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.15rem;">
+                                    Tel: ${escapeHtml(p.contactPhone || '-')} ${p.validUntil ? `| Válida até: ${formatDate(p.validUntil)}` : ''}
+                                </div>
+                            </div>
+                            ${p.status === 'VALIDA'
+                                ? `<button type="button" class="btn-action-status btn-deactivate" onclick="revokeGuardianStudentPickup(${studentId}, ${p.id}, '${safeName}', '${escapeHtml(p.fullName)}')">Revogar</button>`
+                                : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
 
         container.innerHTML = `
-            <p style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:0.4rem;">Pessoas autorizadas a retirar ${escapeHtml(studentName)}:</p>
-            ${pickups.map(p => `
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;font-size:0.82rem;">
-                    ${pickupStatusBadge(p.status)}
-                    <span><strong>${escapeHtml(p.fullName)}</strong> (${escapeHtml(p.relationship)})</span>
-                </div>
-            `).join('')}
+            ${listHtml}
+            <div style="border-top:1px solid var(--border);padding-top:0.75rem;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="toggleGuardianNewPickupForm(${studentId})">
+                    + Autorizar Nova Pessoa
+                </button>
+                <form id="guardian-pickup-form-${studentId}" class="d-none" style="margin-top:0.65rem;display:flex;flex-direction:column;gap:0.5rem;background:#f8fafc;padding:0.75rem;border-radius:6px;border:1px solid var(--border);" onsubmit="saveGuardianStudentPickup(event, ${studentId}, '${safeName}')">
+                    <strong style="font-size:0.82rem;">Nova Autorização para ${safeName}</strong>
+                    <input type="text" id="g-pickup-name-${studentId}" placeholder="Nome completo da pessoa autorizada *" required maxlength="150" style="padding:0.4rem 0.55rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;">
+                        <input type="text" id="g-pickup-rel-${studentId}" placeholder="Parentesco (ex: Avó, Tio) *" required maxlength="50" style="padding:0.4rem 0.55rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;">
+                        <input type="text" id="g-pickup-phone-${studentId}" placeholder="Telefone *" required maxlength="20" style="padding:0.4rem 0.55rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;">
+                        <input type="text" id="g-pickup-doc-${studentId}" placeholder="RG ou CPF (opcional)" maxlength="30" style="padding:0.4rem 0.55rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;">
+                        <input type="date" id="g-pickup-valid-${studentId}" title="Data de validade (opcional)" style="padding:0.4rem 0.55rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;">
+                    </div>
+                    <div style="display:flex;gap:0.45rem;justify-content:flex-end;margin-top:0.2rem;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="toggleGuardianNewPickupForm(${studentId})">Cancelar</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Salvar Autorização</button>
+                    </div>
+                </form>
+            </div>
         `;
 
     } catch (err) {
@@ -497,6 +532,69 @@ async function loadGuardianStudentPickups(studentId, studentName) {
     }
 }
 
+function toggleGuardianNewPickupForm(studentId) {
+    const form = document.getElementById(`guardian-pickup-form-${studentId}`);
+    if (!form) return;
+    form.classList.toggle('d-none');
+    if (!form.classList.contains('d-none')) {
+        form.reset();
+    }
+}
+
+async function saveGuardianStudentPickup(event, studentId, studentName) {
+    event.preventDefault();
+    const payload = {
+        studentId: Number(studentId),
+        fullName: document.getElementById(`g-pickup-name-${studentId}`).value.trim(),
+        relationship: document.getElementById(`g-pickup-rel-${studentId}`).value.trim(),
+        contactPhone: document.getElementById(`g-pickup-phone-${studentId}`).value.trim(),
+        documentNumber: document.getElementById(`g-pickup-doc-${studentId}`).value.trim() || null,
+        validUntil: document.getElementById(`g-pickup-valid-${studentId}`).value || null
+    };
+
+    try {
+        const response = await fetch(`/api/guardian/students/${studentId}/pickups`, {
+            method: 'POST',
+            headers: authHeader(),
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            showBanner(data.message || 'Erro ao cadastrar pessoa autorizada.', 'danger');
+            return;
+        }
+
+        showBanner(`"${data.fullName}" autorizado(a) com sucesso para retirar ${studentName}!`, 'success');
+        await loadGuardianStudentPickups(studentId, studentName, true);
+    } catch (err) {
+        showBanner('Erro na comunicação com o servidor.', 'danger');
+    }
+}
+
+async function revokeGuardianStudentPickup(studentId, pickupId, studentName, pickupName) {
+    const reason = prompt(`Informe o motivo para revogar a autorização de "${pickupName}":`, 'Revogado pelo responsável');
+    if (reason === null) return;
+
+    try {
+        const response = await fetch(`/api/guardian/students/${studentId}/pickups/${pickupId}/revoke`, {
+            method: 'PATCH',
+            headers: authHeader(),
+            body: JSON.stringify({ reason: reason.trim() || 'Revogado pelo responsável' })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            showBanner(data.message || 'Erro ao revogar autorização.', 'danger');
+            return;
+        }
+
+        showBanner(`Autorização de "${pickupName}" revogada com sucesso.`, 'success');
+        await loadGuardianStudentPickups(studentId, studentName, true);
+    } catch (err) {
+        showBanner('Erro na comunicação com o servidor.', 'danger');
+    }
+}
 // ========================================================================
 // AUTORIZAÃ‡Ã•ES DE RETIRADA - Fase 3 (RF005 / RS002 / RF007)
 // ========================================================================

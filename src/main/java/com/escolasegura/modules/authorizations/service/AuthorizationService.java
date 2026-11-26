@@ -209,4 +209,84 @@ public class AuthorizationService {
                 .map(AuthorizedPickupResponse::fromEntity)
                 .toList();
     }
+
+    @Transactional
+    public AuthorizedPickupResponse createAuthorizedPickupForMyStudent(Long studentId, AuthorizedPickupCreateRequest request, String guardianEmail) {
+        if (!studentGuardianRepository.isGuardianLinkedToStudent(studentId, guardianEmail)) {
+            throw new AppException("Acesso negado: este aluno não pertence à sua conta familiar.", HttpStatus.FORBIDDEN);
+        }
+
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não localizado com o ID: " + studentId));
+
+        User guardian = userRepository.findByEmail(guardianEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Responsável não localizado no sistema."));
+
+        AuthorizedPickup pickup = new AuthorizedPickup(
+                student,
+                request.fullName().trim(),
+                request.relationship().trim(),
+                request.contactPhone().trim(),
+                request.documentNumber() != null ? request.documentNumber().trim() : null,
+                PickupStatus.VALIDA,
+                request.validUntil()
+        );
+
+        AuthorizedPickup saved = authorizedPickupRepository.save(pickup);
+
+        PickupAuditLog auditLog = new PickupAuditLog(
+                saved,
+                student,
+                guardian,
+                "CRIACAO_RESPONSAVEL",
+                null,
+                PickupStatus.VALIDA,
+                "Cadastro realizado pelo responsável familiar via Portal."
+        );
+        pickupAuditLogRepository.save(auditLog);
+
+        return AuthorizedPickupResponse.fromEntity(saved);
+    }
+
+    @Transactional
+    public AuthorizedPickupResponse revokePickupForMyStudent(Long studentId, Long pickupId, String reason, String guardianEmail) {
+        if (!studentGuardianRepository.isGuardianLinkedToStudent(studentId, guardianEmail)) {
+            throw new AppException("Acesso negado: este aluno não pertence à sua conta familiar.", HttpStatus.FORBIDDEN);
+        }
+
+        AuthorizedPickup pickup = authorizedPickupRepository.findById(pickupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Autorização não localizada com o ID: " + pickupId));
+
+        if (!pickup.getStudent().getId().equals(studentId)) {
+            throw new AppException("Acesso negado: esta autorização não pertence ao aluno informado.", HttpStatus.FORBIDDEN);
+        }
+
+        if (pickup.getStatus() == PickupStatus.REVOGADA) {
+            throw new BusinessRuleException("Esta autorização já se encontra revogada.");
+        }
+
+        User guardian = userRepository.findByEmail(guardianEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Responsável não localizado no sistema."));
+
+        PickupStatus previousStatus = pickup.getStatus();
+        pickup.setStatus(PickupStatus.REVOGADA);
+        AuthorizedPickup updated = authorizedPickupRepository.save(pickup);
+
+        String auditReason = (reason != null && !reason.isBlank())
+                ? reason.trim()
+                : "Revogado pelo responsável familiar via Portal.";
+
+        PickupAuditLog auditLog = new PickupAuditLog(
+                updated,
+                updated.getStudent(),
+                guardian,
+                "REVOGACAO_RESPONSAVEL",
+                previousStatus,
+                PickupStatus.REVOGADA,
+                auditReason
+        );
+        pickupAuditLogRepository.save(auditLog);
+
+        return AuthorizedPickupResponse.fromEntity(updated);
+    }
 }
