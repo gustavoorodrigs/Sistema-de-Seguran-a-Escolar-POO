@@ -75,7 +75,7 @@ public class AccessControlService {
     @Transactional
     public DeviceResponse updateDeviceStatus(Long deviceId, boolean active) {
         Device device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Dispositivo nÃ£o encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Dispositivo não encontrado"));
         device.setActive(active);
         return DeviceResponse.fromEntity(deviceRepository.save(device), null);
     }
@@ -83,10 +83,10 @@ public class AccessControlService {
     @Transactional
     public AccessEventResponse processAccessEvent(Long authenticatedDeviceId, AccessEventRequest request) {
         Device device = deviceRepository.findById(authenticatedDeviceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Dispositivo authenticado nÃ£o encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Dispositivo authenticado não encontrado"));
 
         if (!device.isActive()) {
-            throw new BusinessRuleException("Dispositivo estÃ¡ inativo e nÃ£o pode registrar acessos");
+            throw new BusinessRuleException("Dispositivo está inativo e não pode registrar acessos");
         }
 
         String normalizedIdentifier = request.identifier().trim();
@@ -95,7 +95,7 @@ public class AccessControlService {
         Optional<Student> studentOpt = studentRepository.findByBadgeCode(normalizedIdentifier);
 
         if (studentOpt.isEmpty()) {
-            String reason = "Identificador/crachÃ¡ nÃ£o cadastrado no sistema";
+            String reason = "Identificador/crachá não cadastrado no sistema";
             AccessLog deniedLog = new AccessLog(
                     null,
                     device,
@@ -110,7 +110,7 @@ public class AccessControlService {
                     device,
                     AlertSeverity.ALTA,
                     "CRACHA_DESCONHECIDO",
-                    "Tentativa de " + request.direction() + " com crachÃ¡ nÃ£o cadastrado (" + normalizedIdentifier + ") no ponto " + device.getName() + "."
+                    "Tentativa de " + request.direction() + " com crachá não cadastrado (" + normalizedIdentifier + ") no ponto " + device.getName() + "."
             );
             return AccessEventResponse.fromEntity(accessLogRepository.save(deniedLog));
         }
